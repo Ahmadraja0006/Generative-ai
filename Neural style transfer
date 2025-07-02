@@ -1,0 +1,40 @@
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
+from PIL import Image
+import argparse
+from torchvision.utils import save_image
+
+from fast_neural_style import TransformerNet  # You’d need to install this from https://github.com/pytorch/examples/tree/main/fast_neural_style
+
+def load_image(img_path, size=None):
+    image = Image.open(img_path).convert('RGB')
+    transform = transforms.Compose([
+        transforms.Resize(size if size else 512),
+        transforms.ToTensor(),
+        transforms.Lambda(lambda x: x.mul(255))
+    ])
+    return transform(image).unsqueeze(0)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--content", required=True)
+    parser.add_argument("--style", required=True)
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Load pre-trained transformer network
+    style_model = TransformerNet()
+    style_model.load_state_dict(torch.load("mosaic.pth"))  # Pre-trained model
+    style_model.to(device)
+    style_model.eval()
+
+    content_image = load_image(args.content)
+    content_image = content_image.to(device)
+
+    with torch.no_grad():
+        output = style_model(content_image).cpu()
+
+    save_image(output[0].clamp(0,255)/255.0, args.output)
