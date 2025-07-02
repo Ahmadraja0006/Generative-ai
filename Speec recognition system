@@ -1,0 +1,50 @@
+#include <vosk_api.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <alsa/asoundlib.h>
+
+int main(int argc, char *argv[])
+{
+    // Initialize Vosk
+    vosk_set_log_level(0);
+    Model *model = vosk_model_new("model-en-us");
+    if (model == NULL) {
+        fprintf(stderr, "Cannot load the model\n");
+        return 1;
+    }
+
+    Recognizer *recognizer = vosk_recognizer_new(model, 16000.0);
+
+    // Configure ALSA microphone
+    snd_pcm_t *pcm_handle;
+    snd_pcm_open(&pcm_handle, "default", SND_PCM_STREAM_CAPTURE, 0);
+    snd_pcm_set_params(pcm_handle,
+                       SND_PCM_FORMAT_S16_LE,
+                       SND_PCM_ACCESS_RW_INTERLEAVED,
+                       1,
+                       16000,
+                       1,
+                       500000); // 0.5 sec latency
+
+    printf("🎙️ Speak into your mic...\n");
+
+    int16_t buffer[4096];
+    while (1)
+    {
+        snd_pcm_readi(pcm_handle, buffer, 4096 / 2);
+        if (vosk_recognizer_accept_waveform(recognizer, buffer, 4096)) {
+            const char *result = vosk_recognizer_result(recognizer);
+            printf("Result: %s\n", result);
+        } else {
+            const char *partial = vosk_recognizer_partial_result(recognizer);
+            printf("Partial: %s\n", partial);
+        }
+    }
+
+    // Cleanup
+    vosk_recognizer_free(recognizer);
+    vosk_model_free(model);
+    snd_pcm_close(pcm_handle);
+
+    return 0;
+}
