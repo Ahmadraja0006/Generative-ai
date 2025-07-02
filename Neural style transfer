@@ -1,40 +1,42 @@
-import torch
-import torchvision.models as models
-import torchvision.transforms as transforms
-from PIL import Image
-import argparse
-from torchvision.utils import save_image
+#include <tensorflow/lite/c/c_api.h>
+#include <stdio.h>
 
-from fast_neural_style import TransformerNet  # You’d need to install this from https://github.com/pytorch/examples/tree/main/fast_neural_style
+// loads a TFLite style transfer model
+int main() {
+    // Load your TFLite model
+    TfLiteModel *model = TfLiteModelCreateFromFile("style_transfer_model.tflite");
+    if (model == NULL) {
+        printf("Failed to load model\n");
+        return 1;
+    }
 
-def load_image(img_path, size=None):
-    image = Image.open(img_path).convert('RGB')
-    transform = transforms.Compose([
-        transforms.Resize(size if size else 512),
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: x.mul(255))
-    ])
-    return transform(image).unsqueeze(0)
+    // Create interpreter options
+    TfLiteInterpreterOptions *options = TfLiteInterpreterOptionsCreate();
+    TfLiteInterpreterOptionsSetNumThreads(options, 2);
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--content", required=True)
-    parser.add_argument("--style", required=True)
-    parser.add_argument("--output", required=True)
-    args = parser.parse_args()
+    // Create interpreter
+    TfLiteInterpreter *interpreter = TfLiteInterpreterCreate(model, options);
+    if (interpreter == NULL) {
+        printf("Failed to create interpreter\n");
+        return 1;
+    }
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    // Allocate tensors
+    if (TfLiteInterpreterAllocateTensors(interpreter) != kTfLiteOk) {
+        printf("Failed to allocate tensors\n");
+        return 1;
+    }
 
-    # Load pre-trained transformer network
-    style_model = TransformerNet()
-    style_model.load_state_dict(torch.load("mosaic.pth"))  # Pre-trained model
-    style_model.to(device)
-    style_model.eval()
+    // load input image into input tensor...
+    // run inference...
+    // get output tensor...
 
-    content_image = load_image(args.content)
-    content_image = content_image.to(device)
+    printf("Neural style transfer completed!\n");
 
-    with torch.no_grad():
-        output = style_model(content_image).cpu()
+    // Cleanup
+    TfLiteInterpreterDelete(interpreter);
+    TfLiteInterpreterOptionsDelete(options);
+    TfLiteModelDelete(model);
 
-    save_image(output[0].clamp(0,255)/255.0, args.output)
+    return 0;
+}
