@@ -1,0 +1,84 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_WORDS 1000
+#define MAX_WORD_LENGTH 20
+
+// store words
+char words[MAX_WORDS][MAX_WORD_LENGTH];
+int word_count = 0;
+
+// store transitions (bigram counts)
+int transitions[MAX_WORDS][MAX_WORDS];
+
+// find index of word in words array
+int get_word_index(char *word) {
+    for (int i = 0; i < word_count; i++) {
+        if (strcmp(words[i], word) == 0) {
+            return i;
+        }
+    }
+    // add new word if not found
+    strcpy(words[word_count], word);
+    word_count++;
+    return word_count - 1;
+}
+
+// tokenize and build transition matrix
+void train_markov(char *text) {
+    char *token = strtok(text, " \n");
+    int prev = -1;
+
+    while (token != NULL) {
+        int idx = get_word_index(token);
+        if (prev != -1) {
+            transitions[prev][idx]++;
+        }
+        prev = idx;
+        token = strtok(NULL, " \n");
+    }
+}
+
+// generate text
+void generate_text(int start, int length) {
+    int current = start;
+    printf("%s ", words[current]);
+
+    for (int i = 0; i < length; i++) {
+        // pick next word randomly based on transitions
+        int total = 0;
+        for (int j = 0; j < word_count; j++) {
+            total += transitions[current][j];
+        }
+
+        if (total == 0) break;  // no transitions
+
+        int r = rand() % total;
+        int sum = 0;
+        for (int j = 0; j < word_count; j++) {
+            sum += transitions[current][j];
+            if (r < sum) {
+                current = j;
+                printf("%s ", words[current]);
+                break;
+            }
+        }
+    }
+}
+
+int main() {
+    char text[] = "hello world hello chatgpt hello c language text generation hello world text model";
+    
+    train_markov(text);
+
+    srand(time(NULL));
+
+    printf("Generated text:\n");
+    int start = get_word_index("hello");  // start word
+    generate_text(start, 20);
+
+    printf("\n");
+    return 0;
+}
