@@ -1,0 +1,58 @@
+import java.util.*;
+import java.util.regex.*;
+import java.util.stream.Collectors;
+
+public class ArticleSummarizer {
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("Enter your article text below (end with an empty line):");
+        StringBuilder inputText = new StringBuilder();
+        String line;
+
+        while (!(line = scanner.nextLine()).isEmpty()) {
+            inputText.append(line).append(" ");
+        }
+
+        String article = inputText.toString();
+        String summary = summarize(article, 3);  // summary of top 3 sentences
+        System.out.println("\n=== Summary ===");
+        System.out.println(summary);
+
+        scanner.close();
+    }
+
+    public static String summarize(String text, int numSentences) {
+        // Split into sentences
+        String[] sentences = text.split("(?<=[.!?])\\s+");
+
+        // Split words and count word frequencies
+        Map<String, Integer> wordFreq = new HashMap<>();
+        for (String sentence : sentences) {
+            for (String word : sentence.toLowerCase().split("\\W+")) {
+                if (word.isBlank() || word.length() < 3) continue; // ignore short words
+                wordFreq.put(word, wordFreq.getOrDefault(word, 0) + 1);
+            }
+        }
+
+        // Score each sentence by summing frequencies of its words
+        Map<String, Integer> sentenceScores = new HashMap<>();
+        for (String sentence : sentences) {
+            int score = 0;
+            for (String word : sentence.toLowerCase().split("\\W+")) {
+                score += wordFreq.getOrDefault(word, 0);
+            }
+            sentenceScores.put(sentence, score);
+        }
+
+        // Select top N highest-scoring sentences
+        List<String> summarySentences = sentenceScores.entrySet().stream()
+            .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+            .limit(numSentences)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+
+        return String.join(" ", summarySentences);
+    }
+}
